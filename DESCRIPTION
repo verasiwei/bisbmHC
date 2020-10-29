@@ -1,0 +1,14 @@
+Package: bisbmHC
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Siwei",
+           family = "Zhang",
+           role = c("aut", "cre"),
+           email = "siweizhang0730@gmail.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: What the package does (one paragraph).
+License: What license it uses
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
