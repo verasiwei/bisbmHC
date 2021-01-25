@@ -1,0 +1,128 @@
+---
+title: "bisbmHC"
+author: "Siwei Zhang"
+date: "1/20/2021"
+output: html_document
+# css: binary_tree.css
+---
+
+## Set up
+
+```{r setup, eval = TRUE,warning=FALSE,message=FALSE,echo=TRUE,results='hide'}
+packages <- c("sbmr","glue","tidyverse","purrr","Rcpp",
+              "igraph","ggplot2","gridExtra","RSpectra",
+              "pheSBMR","future","foreach","doParallel",
+              "devtools","Matrix","expm","cluster","readxl",
+              "phewasHelper","r2d3","dplyr",
+              "R.utils","aws.s3","stringi","d3r")
+lapply(packages, library, character.only = TRUE)
+devtools::load_all("/home/siwei/bisbmHC")
+```
+
+## Input data
+
+```{r loaddata, eval = TRUE,warning=FALSE,message=FALSE,echo=TRUE}
+data("phenome_dat_long",package = "bisbmHC")
+head(phenome_dat_long)
+
+```
+
+## Run biSBM parallelly in Docker
+
+The biSBM algorithm is basically graph-tool based and credit to [pheSBMR](https://github.com/tbilab/pheSBMR) package.
+
+```{r runbisbm, eval = FALSE,warning=FALSE,message=FALSE,echo=TRUE}
+bisbmresults <- run_bisbm(10,10,phenome_dat_long)
+
+bisbmresults[[1]] %>%
+  head()
+```
+
+## Build the Consensus Graph
+
+Tracking the fraction of times two nodes are connected from iteratively cluster using biSBM and built a consensus graph according to patient-diagnosis code relationship. Iteratively implement biSBM on the input patient-diagnosis matrix and extract the generated adjacency
+matrix on patients with the element equal to 1 if two patients are grouped into the same community and 0 otherwise from the estimation through biSBM $A^1$, $A^2$, .., $A^𝑀$ and then compute consensus graph $P=\sum^{M}_{m=1} \frac{A^m}{M}$.
+
+```{r consensus_graph, eval = TRUE,warning=FALSE,message=FALSE,echo=TRUE}
+# works on patients groups
+data("bisbmresults")
+id_label <- bisbmresults[[1]] %>%
+  filter(type=="id") %>%
+  filter(level==0) %>%
+  dplyr::select(node) %>%
+  arrange(node)
+id_label <- id_label$node
+
+consensus_dat <- consensus_build(id_label,"id",bisbmresults,parallel=TRUE,workers=10)
+head(consensus_dat)
+
+```
+
+
+## Recursive Partitioning
+
+One of the benefits of this algorithm is that we don't need to specify the number of clusters in prior. It will be helpful in the unsupervised clustering since we do not have enough information to estimate the number of clusters at first. Recursive partitioning starts with the whole network and partition the nodes into two communities until a stopping rule agrees with no further communities. Here we use the non-backtracking stopping rule and users can define the partition method like kmeans and so on.
+
+```{r recursive_partition, eval = TRUE,warning=FALSE,message=FALSE,echo=TRUE}
+g <- graph_from_data_frame(consensus_dat,directed = F,vertices = NULL)
+g <- simplify(g)
+adj <- get.adjacency(g,type = "both",attr = "weight")
+
+#get the cluster results including the path of each node
+cluster.result <- recursive_biTree(adj,cluster.labels.list=list(),
+                                   ncluster=0, cluster.labels=id_label,
+                                   n.min=10,method="kmeans")
+
+cluster.result[[1]]
+head(cluster.result[[2]])
+cluster.result[[3]][1:20]
+```
+
+
+## Get the community membership
+
+To get the community membership at each level, just use `community_membership` function and input the tree path from cluster results. You will directly get the dataframe of the community membership at each level. There is also an option for visualization to have an overlook of the hierarchical community structure.
+
+```{r comm_member, eval = TRUE,warning=FALSE,message=FALSE,echo=TRUE}
+comm_member <- community_membership(cluster.result$tree.path,
+                                    nlabels=sum(sapply(cluster.result$cluster.labels.list,length)))
+
+head(comm_member)
+
+```
+
+<!-- <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script> -->
+<!-- <script src="https://d3js.org/d3.v4.min.js"></script> -->
+
+<!-- <div id = "viz"></div> -->
+
+To get the visualization
+
+```{r tree_plot}
+comm_member_wide <- comm_member %>%
+  spread(level,node,sep="") %>%
+  select(-id) %>%
+  distinct(.)
+level.names <- colnames(comm_member_wide)
+
+data_for_tree <- comm_member_wide %>%
+  arrange(!!!syms(level.names)) %>%
+  d3_nest()
+
+#write file
+# write(data_for_tree,file = paste("data_for_tree.json"))
+r2d3(data_for_tree, script = "/home/siwei/bisbmHC/inst/binary_tree.js", 
+     container = "div",css ="/home/siwei/bisbmHC/inst/binary_tree.css",
+     d3_version = 5)
+
+```
+
+
+
+
+
+
+
+
+
+

@@ -4,7 +4,7 @@
 \alias{consensus_aggregation}
 \title{Create Index of randomly sampling in aggregation}
 \usage{
-consensus_aggregation(N, M, seed, rep, bisbmresults, id_label)
+consensus_aggregation(N, M, seed, rep, id_name, bisbmresults, id_label, ...)
 }
 \arguments{
 \item{N}{Aggregation times}
@@ -13,7 +13,9 @@ consensus_aggregation(N, M, seed, rep, bisbmresults, id_label)
 
 \item{seed}{A vector of the seed you want to set for each aggregation time}
 
-\item{rep}{The number of pairs for comparison}
+\item{rep}{A vector of the number of pairs for comparison at each aggregation}
+
+\item{id_name}{name of the variable you want to cluster}
 
 \item{bisbmresults}{The results from run_bisbm}
 
@@ -23,14 +25,24 @@ consensus_aggregation(N, M, seed, rep, bisbmresults, id_label)
 the list of a pair of independent consensus graph with the same aggregation times
 }
 \description{
-Given the number of M affinity matrix from bisbm results, randomly select N results to construct the
-consensus graph and compare with the consensus graph which constructed by another N results
-that randomly selected in the rest of M-first selected N results.
+Given the number of M affinity matrix from bisbm results, randomly select N1 results to construct the
+consensus graph and compare with the consensus graph which constructed by another N2 results
+that randomly selected in the rest of all M-N1 results.
 }
 \details{
 \code{consensus_aggregation} returns the list of a pair of independent consensus graph with the same aggregation times
 with the same number of aggregation times
 }
 \examples{
-consensus_matrix_list <- consensus_aggregation(20,500,c(1:50),50,bisbmresults,id_label)
+data("bisbmresults")
+library(dplyr,quietly=TRUE,warn.conflicts=FALSE)
+
+id_label <- bisbmresults[[1]] \%>\%
+         filter(type=="id") \%>\%
+         filter(level==0) \%>\%
+         dplyr::select(node) \%>\%
+         arrange(node)
+id_label <- id_label$node
+
+consensus_matrix_list <- consensus_aggregation(5,10,c(1:5),5,"id",bisbmresults,id_label)
 }

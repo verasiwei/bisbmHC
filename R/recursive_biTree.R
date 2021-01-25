@@ -1,8 +1,8 @@
 #' Set up recursive bi-partition tree
 #'
-#' \code{recursive_biTree} returns a list with the number of communities, tree path of each node,a list of community labels for each community
+#' \code{recursive_biTree} returns a list with the number of communities, tree path of each node, a list of node labels
 #'
-#' @param A It is the consensus graph (the long format of consensus matrix (node to node connection weight))
+#' @param A It is the consensus graph (the long format of consensus matrix from consensus_build (node to node connection weight))
 #' @param cluster.labels.list To store a list of labels for each cluster during the process
 #' @param ncluster To store the number of clusters during the process
 #' @param cluster.labels A vector of labels for all the input nodes, the order should be consistent with the order of A
@@ -10,18 +10,40 @@
 #' @param method The partition method in spectral clustering
 #' @return a list with the number of communities, tree path of each node,a list of community labels for each community
 #'
+#' @import future dplyr furrr purrr tidyr igraph cluster
 #' @export
 #'
 #' @examples
-#' cluster_result <- recursive_biTree(A,cluster.labels.list=list(), ncluster=0, cluster.labels=c(1:200),n.min=10,method="kmeans")
+#' library(dplyr,quietly=TRUE,warn.conflicts=FALSE)
+#' library(igraph,quietly=TRUE,warn.conflicts=FALSE)
+#' 
+#' g <- graph_from_data_frame(consensus_dat,directed = F,vertices = NULL)
+#' g <- simplify(g)
+#' adj <- get.adjacency(g,type = "both",attr = "weight")
+#' 
+#' id_label <- bisbmresults[[1]] %>%
+#'          filter(type=="id") %>%
+#'          filter(level==0) %>%
+#'          dplyr::select(node) %>%
+#'          arrange(node)
+#' id_label <- id_label$node
+#' 
+#' cluster.result <- recursive_biTree(adj,cluster.labels.list=list(), 
+#'                                    ncluster=0, cluster.labels=id_label,
+#'                                    n.min=10,method="kmeans")
+#'                                    
+#' head(cluster.result[[1]])
+#' head(cluster.result[[2]])
+#' head(cluster.result[[3]])
 
 
-recursive_biTree <- function(A,cluster.labels.list,ncluster,cluster.labels,n.min,method){
+recursive_biTree <- function(A,cluster.labels.list,ncluster,
+                             cluster.labels,n.min,method){
 
-  nodes.connect <- which(rowSums(A) > 0)
-  nodes.isolate <- which(rowSums(A) == 0)
+  nodes.connect <- which(Matrix::rowSums(A) > 0)
+  nodes.isolate <- which(Matrix::rowSums(A) == 0)
   cluster.labels.full <- cluster.labels
-  all.deg = rowSums(A)
+  all.deg = Matrix::rowSums(A)
 
   ##do not start if there are too many isolated nodes
   if((length(nodes.connect)<=8)||(length(nodes.isolate)>=5*length(nodes.connect))||(length(nodes.connect)<2*n.min)){
@@ -45,14 +67,14 @@ recursive_biTree <- function(A,cluster.labels.list,ncluster,cluster.labels,n.min
   K = 2
   n <- nrow(A)
   I <- as(diag(rep(1,n)),"dgCMatrix")
-  D <- as(diag(colSums(A)),"dgCMatrix")
-  r <- sqrt(sum((colSums(A))^2)/sum(colSums(A))-1)
+  D <- as(diag(Matrix::colSums(A)),"dgCMatrix")
+  r <- sqrt(sum((Matrix::colSums(A))^2)/sum(Matrix::colSums(A))-1)
 
   B <- as(matrix(0,nrow=2*n,ncol=2*n),"dgCMatrix")
   B[(n+1):(2*n),1:n] <- -I
   B[1:n,(n+1):(2*n)] <- D-I
   B[(n+1):(2*n),(n+1):(2*n)] <- A
-  ss <- Re(eigs(B,k=2,which="LM")$values)
+  ss <- Re(RSpectra::eigs(B,k=2,which="LM")$values)
   split.flag <- sum(abs(ss)>r)>=2
 
   #begin binary tree
@@ -61,12 +83,12 @@ recursive_biTree <- function(A,cluster.labels.list,ncluster,cluster.labels,n.min
     if(method=="eigen"){
       # # #eigen A
       l_matrix <- A
-      eval <- eigs(l_matrix,10,which = "LM")
+      eval <- RSpectra::eigs(l_matrix,10,which = "LM")
       clustering <- ifelse(eval$vectors[,2]<0,1,2)
     } else if(method=="fiedler"){
       # # #eigen unnormalized L
       l_matrix <- D-A
-      eval <- eigs(l_matrix,10,which = "SM")
+      eval <- RSpectra::eigs(l_matrix,10,which = "SM")
       # f <- function(x,extra = NULL){
       #   as.vector(l_matrix%*%x)
       # }
@@ -77,9 +99,9 @@ recursive_biTree <- function(A,cluster.labels.list,ncluster,cluster.labels,n.min
     } else if(method=="kmeans"){
       #kmeans
       deg.adj <- D+diag(rep(0.1,n))
-      l_matrix <- solve(sqrtm(deg.adj))%*%A%*%solve(sqrtm(deg.adj))
+      l_matrix <- solve(expm::sqrtm(deg.adj))%*%A%*%solve(expm::sqrtm(deg.adj))
       deg.adj <- NULL
-      eval <- eigs(l_matrix,10,which = "LM")
+      eval <- RSpectra::eigs(l_matrix,10,which = "LM")
       eval.adj <- eval$vectors%*%diag(abs(eval$values))
       embed.slist <- abs(eval$values[1])
       m=1
@@ -89,13 +111,13 @@ recursive_biTree <- function(A,cluster.labels.list,ncluster,cluster.labels,n.min
       }
       embed.Y <- data.frame(eval.adj[,1:m])
       row.names(embed.Y) <-  A@Dimnames[[1]]
-      clustering <- pam(embed.Y,k=2)$clustering
+      clustering <- cluster::pam(embed.Y,k=2)$clustering
     } else if(method=="hcluster"){
       #hierarchical cluster
       deg.adj <- D+diag(rep(0.1,n))
-      l_matrix <- solve(sqrtm(deg.adj))%*%A%*%solve(sqrtm(deg.adj))
+      l_matrix <- solve(expm::sqrtm(deg.adj))%*%A%*%solve(expm::sqrtm(deg.adj))
       deg.adj <- NULL
-      eval <- eigs(l_matrix,10,which = "LM")
+      eval <- RSpectra::eigs(l_matrix,10,which = "LM")
       eval.adj <- eval$vectors%*%diag(abs(eval$values))
       embed.slist <- abs(eval$values[1])
       m=1

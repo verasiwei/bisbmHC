@@ -14,7 +14,7 @@ recursive_biTree(
 )
 }
 \arguments{
-\item{A}{It is the consensus graph (the long format of consensus matrix (node to node connection weight))}
+\item{A}{It is the consensus graph (the long format of consensus matrix from consensus_build (node to node connection weight))}
 
 \item{cluster.labels.list}{To store a list of labels for each cluster during the process}
 
@@ -30,8 +30,28 @@ recursive_biTree(
 a list with the number of communities, tree path of each node,a list of community labels for each community
 }
 \description{
-\code{recursive_biTree} returns a list with the number of communities, tree path of each node,a list of community labels for each community
+\code{recursive_biTree} returns a list with the number of communities, tree path of each node, a list of node labels
 }
 \examples{
-cluster_result <- recursive_biTree(A,cluster.labels.list=list(), ncluster=0, cluster.labels=c(1:200),n.min=10,method="kmeans")
+library(dplyr,quietly=TRUE,warn.conflicts=FALSE)
+library(igraph,quietly=TRUE,warn.conflicts=FALSE)
+
+g <- graph_from_data_frame(consensus_dat,directed = F,vertices = NULL)
+g <- simplify(g)
+adj <- get.adjacency(g,type = "both",attr = "weight")
+
+id_label <- bisbmresults[[1]] \%>\%
+         filter(type=="id") \%>\%
+         filter(level==0) \%>\%
+         dplyr::select(node) \%>\%
+         arrange(node)
+id_label <- id_label$node
+
+cluster.result <- recursive_biTree(adj,cluster.labels.list=list(), 
+                                   ncluster=0, cluster.labels=id_label,
+                                   n.min=10,method="kmeans")
+                                   
+head(cluster.result[[1]])
+head(cluster.result[[2]])
+head(cluster.result[[3]])
 }

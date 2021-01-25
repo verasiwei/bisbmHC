@@ -4,21 +4,29 @@
 \alias{run_bisbm}
 \title{Run graph-tool based bisbm parallelly}
 \usage{
-run_bisbm(ntimes, ncore, dat)
+run_bisbm(ntimes, ncore, dat, ...)
 }
 \arguments{
 \item{ntimes}{The number of times for running sbm}
 
 \item{ncore}{The number of cores required}
 
-\item{dat}{The data which satisfy the requirements of the formate of runnning sbm}
+\item{dat}{The data which satisfy the requirements of the format of runnning sbm}
 }
 \value{
-Lists of sbm results
+Lists of sbm results, 
+        each element of the list is a dataframe of biSBM cluster results
 }
 \description{
-\code{run_bisbm} returns lists of sbm results
+\code{run_bisbm} returns lists of bisbm results
 }
 \examples{
-sbmresults <- run_bisbm(1000,10,pheno_dat)
+#run bisbm twp times
+data("phenome_dat_long")
+library(dplyr,quietly=TRUE)
+
+head(phenome_dat_long)
+
+bisbmresults <- run_bisbm(2,2,phenome_dat_long)
+head(bisbmresults[[1]])
 }

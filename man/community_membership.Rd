@@ -18,5 +18,9 @@ returns a long-format community membership dataframe
 \code{community_membership} returns a long-format dataframe
 }
 \examples{
-comm_member <- community_membership(cluster.result$tree.path,nlabels=378)
+data("cluster.result")
+
+comm_member <- community_membership(cluster.result$tree.path,
+nlabels=sum(sapply(cluster.result$cluster.labels.list,length)))
+head(comm_member)
 }

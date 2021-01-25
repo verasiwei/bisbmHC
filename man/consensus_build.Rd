@@ -4,16 +4,36 @@
 \alias{consensus_build}
 \title{Build the consensus graph}
 \usage{
-consensus_build(id_label, bisbm)
+consensus_build(id_label, id_name, bisbm, parallel = TRUE, workers = 10, ...)
 }
 \arguments{
 \item{id_label}{The lable of nodes}
 
+\item{id_name}{column name of the variable you want to cluster}
+
 \item{bisbm}{The list of bisbm results from run_bisbm}
+
+\item{parallel}{Whether parallel computing}
+
+\item{workers}{The number of cores}
 }
 \value{
 The long format of consensus matrix (node to node connection weight)
 }
 \description{
 \code{consensus_build} returns the long format of consensus matrix (node to node connection weight)
+}
+\examples{
+data("bisbmresults")
+library(dplyr,quietly=TRUE,warn.conflicts=FALSE)
+
+id_label <- bisbmresults[[1]] \%>\%
+         filter(type=="id") \%>\%
+         filter(level==0) \%>\%
+         dplyr::select(node) \%>\%
+         arrange(node)
+id_label <- id_label$node
+
+consensus_dat <- consensus_build(id_label,"id",bisbmresults,parallel=TRUE,workers=10)
+head(consensus_dat)
 }

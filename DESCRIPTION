@@ -5,10 +5,32 @@ Authors@R:
     person(given = "Siwei",
            family = "Zhang",
            role = c("aut", "cre"),
-           email = "siweizhang0730@gmail.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: What license it uses
+           email = "siweizhang0730@gmail.com")
+Description: This is the bipartite network clustering framework in Electronic Medical Records for unsupervised learning of latent hierarchical community structure of patients and disease.
+License: file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
+Depends: R (>= 3.4)
+LinkingTo: 
+    Rcpp
+Imports: 
+    ggplot2,
+    dplyr,
+    tidyr,
+    purrr,
+    stringr,
+    readr,
+    glue,
+    Rcpp,
+    igraph,
+    RSpectra,
+    Matrix,
+    expm,
+    r2d3,
+    future,
+    furrr,
+    d3r
+    
+    
+  
